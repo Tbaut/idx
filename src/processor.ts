@@ -1,10 +1,10 @@
-import {lookupArchive} from "@subsquid/archive-registry"
+import { lookupArchive } from "@subsquid/archive-registry"
 import * as ss58 from "@subsquid/ss58"
-import {BatchContext, BatchProcessorItem, SubstrateBatchProcessor} from "@subsquid/substrate-processor"
-import {Store, TypeormDatabase} from "@subsquid/typeorm-store"
-import {In} from "typeorm"
-import {Account, Transfer} from "./model"
-import {BalancesTransferEvent} from "./types/events"
+import { BatchContext, BatchProcessorItem, SubstrateBatchProcessor } from "@subsquid/substrate-processor"
+import { Store, TypeormDatabase } from "@subsquid/typeorm-store"
+import { In } from "typeorm"
+import { Account, Transfer } from "./model"
+import { BalancesTransferEvent } from "./types/events"
 
 
 const processor = new SubstrateBatchProcessor()
@@ -13,7 +13,7 @@ const processor = new SubstrateBatchProcessor()
         //archive: lookupArchive("kusama", {release: "FireSquid"})
 
         // Use archive created by archive/docker-compose.yml
-        archive: lookupArchive('kusama', {release: 'FireSquid'} )
+        archive: lookupArchive('rococo', { release: 'FireSquid' })
     })
     .addEvent('Balances.Transfer', {
         data: {
@@ -26,6 +26,7 @@ const processor = new SubstrateBatchProcessor()
             }
         }
     } as const)
+    .setBlockRange({ from: 13608000, to: 13676360 })
 
 
 type Item = BatchProcessorItem<typeof processor>
@@ -41,14 +42,14 @@ processor.run(new TypeormDatabase(), async ctx => {
         accountIds.add(t.to)
     }
 
-    let accounts = await ctx.store.findBy(Account, {id: In([...accountIds])}).then(accounts => {
+    let accounts = await ctx.store.findBy(Account, { id: In([...accountIds]) }).then(accounts => {
         return new Map(accounts.map(a => [a.id, a]))
     })
 
     let transfers: Transfer[] = []
 
     for (let t of transfersData) {
-        let {id, blockNumber, timestamp, extrinsicHash, amount, fee} = t
+        let { id, blockNumber, timestamp, extrinsicHash, amount, fee } = t
 
         let from = getAccount(accounts, t.from)
         let to = getAccount(accounts, t.to)
@@ -88,19 +89,14 @@ function getTransfers(ctx: Ctx): TransferEvent[] {
         for (let item of block.items) {
             if (item.name == "Balances.Transfer") {
                 let e = new BalancesTransferEvent(ctx, item.event)
-                let rec: {from: Uint8Array, to: Uint8Array, amount: bigint}
-                if (e.isV1020) {
-                    let [from, to, amount] = e.asV1020
-                    rec = { from, to, amount}
-                } else if (e.isV1050) {
-                    let [from, to, amount] = e.asV1050
-                    rec = { from, to, amount}
-                } else if (e.isV9130) {
-                    rec = e.asV9130
+                let rec: { from: Uint8Array, to: Uint8Array, amount: bigint }
+                if (e.isV9190) {
+                    let { from, to, amount } = e.asV9190
+                    rec = { from, to, amount }
                 } else {
                     throw new Error('Unsupported spec')
                 }
-                
+
                 transfers.push({
                     id: item.event.id,
                     blockNumber: block.header.height,

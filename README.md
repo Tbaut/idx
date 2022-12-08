@@ -32,7 +32,9 @@ On Windows we recommend to use [WSL](https://docs.microsoft.com/en-us/windows/ws
 
 ```bash
 # 1. Install dependencies
-npm ci
+npm ci 
+# or with yarn 
+yarn install --frozen-lockfile
 
 # 2. Compile typescript files
 make build
